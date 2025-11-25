@@ -77,9 +77,14 @@ class CustomerController extends Controller
 
             DB::commit();
 
+            // Generate WhatsApp message
+            $whatsappMessage = $this->generateWhatsAppMessage($order);
+            $adminWhatsApp = '60142153722'; // Admin WhatsApp number with country code
+
             return response()->json([
                 'success' => true,
                 'order_id' => $order->id,
+                'whatsapp_url' => "https://wa.me/{$adminWhatsApp}?text=" . urlencode($whatsappMessage),
                 'redirect' => route('customer.order-success', $order->id)
             ]);
 
@@ -90,6 +95,33 @@ class CustomerController extends Controller
                 'message' => 'Order failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function generateWhatsAppMessage($order)
+    {
+        $message = "🎂 *NEW CAKE ORDER* 🎂\n\n";
+        $message .= "📋 *Order Number:* {$order->order_number}\n";
+        $message .= "👤 *Customer:* {$order->customer_name}\n";
+        $message .= "📱 *Phone:* {$order->customer_phone}\n";
+        $message .= "📅 *Pickup:* " . $order->pickup_datetime->format('d M Y, h:i A') . "\n\n";
+
+        $message .= "🍰 *Items Ordered:*\n";
+        foreach ($order->orderItems as $item) {
+            $message .= "• {$item->quantity}x {$item->cake->name} - RM " . number_format($item->price * $item->quantity, 2) . "\n";
+            if ($item->special_notes) {
+                $message .= "  _(Note: {$item->special_notes})_\n";
+            }
+        }
+
+        $message .= "\n💰 *Total Amount:* RM " . number_format($order->total_amount, 2) . "\n";
+
+        if ($order->notes) {
+            $message .= "\n📝 *Special Instructions:*\n{$order->notes}\n";
+        }
+
+        $message .= "\n✅ Please confirm this order!";
+
+        return $message;
     }
 
     public function orderSuccess($orderId)
